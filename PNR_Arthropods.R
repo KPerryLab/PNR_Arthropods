@@ -24,7 +24,7 @@ pnr15 <- pnr15 %>%  mutate(across(5:last_col(), ~ as.numeric(as.character(.))))
 # ---- 2022 data ----
 pnr2022 <- read.csv("Data/Processed/Powdermill_Community_2022.csv")
 pnr22<- na.omit(pnr2022)
-pnr22 <- pnr22[, -c(2,4,7)]
+pnr22 <- pnr22[, -c(2,4,5,8)]
 pnr22 <- pnr22 %>% rename(Quadrat = Site_ID)  # for naming consistency
 str(pnr22)
 colSums(is.na(pnr22))
@@ -38,14 +38,14 @@ pnr22 <- pnr22 %>% mutate(Treatment = dplyr::recode(Treatment,
                                                     "windthrow" = "Windthrow"))
 levels(pnr22$Treatment)
 
-# Adding Paronellidae into Entomobryidae 
-
-pnr22 <- pnr22 %>% mutate(Entomobryidae = Entomobryidae + Paronellidae) %>%  select(-Paronellidae)
- 
-
-# Removing Poduridae
-pnr22 <- pnr22 %>% select(-Poduridae)    
-
+# # Adding Paronellidae into Entomobryidae 
+# 
+# pnr22 <- pnr22 %>% mutate(Entomobryidae = Entomobryidae + Paronellidae) %>%  select(-Paronellidae)
+#  
+# 
+# # Removing Poduridae
+# pnr22 <- pnr22 %>% select(-Poduridae)    
+# 
 
 
 
@@ -92,7 +92,14 @@ all_data <- left_join(all_data, traploc, by = "Quadrat")
 
 
 all_data <- all_data %>%  relocate(90, .before = 3)
+
+
+colSums(is.na(all_data))
+all_data$Collembola[is.na(all_data$Collembola)] <- 0
+colSums(is.na(all_data))
+
 all_data <- all_data %>%  mutate(across(7:last_col(), ~ as.numeric(as.character(.))))
+
 
 all_data$Abundance <- rowSums(all_data[,7:90], na.rm=TRUE)
 all_data$Richness <- apply(all_data[,7:90]>0,1,sum)
@@ -101,8 +108,31 @@ str(all_data)
 all_data$Richness <- as.numeric(all_data$Richness)
 
 
+# Calculating trap duration 
+all_data$DateColl <- as.Date(all_data$DateColl, format = "%m/%d/%Y")
+all_data$DateSet  <- as.Date(all_data$DateSet, format = "%m/%d/%Y")
+
+all_data$TrapTime <- as.numeric(all_data$DateColl - all_data$DateSet)
+
+all_data <- all_data %>%  relocate(94, .before = 6)
+
+
+# write.csv(all_data, "Data/Saved/pnr_clean.csv", row.names = FALSE)
+
+
+# ---- Cleaned and Combined Data (2015 and 2022) ----
+
+all_data <- read.csv("Data/Saved/pnr_clean.csv")
+
+
+
+
+
+# ---- GLMM ----
 mean(all_data$Abundance)
 var(all_data$Abundance)
+
+
 
 library(glmmTMB)
 all_data$Year <- as.factor(all_data$Year)
@@ -113,7 +143,7 @@ all_data$Transect <- as.factor(all_data$Transect)
 levels(all_data$Treatment)
 
 
-model1 <- glmmTMB(Abundance ~ Treatment * Year + (1|Transect), family=nbinom2(), data = all_data)
+model1 <- glmmTMB(Abundance ~ Treatment * Year + (1|Transect) + offset(log(TrapTime)), family=nbinom2(), data = all_data)
 
 summary(model1)
 
@@ -127,7 +157,7 @@ mean(all_data$Richness)
 var(all_data$Richness)
 
 
-model2 <- glmmTMB(Richness ~ Treatment * Year + (1|Transect), family=poisson(), data = all_data)
+model2 <- glmmTMB(Richness ~ Treatment * Year + (1|Transect)+ offset(log(TrapTime)), family=poisson(), data = all_data)
 
 summary(model2)
 
@@ -140,10 +170,11 @@ mean(all_data$Diversity)
 var(all_data$Diversity)
 hist(all_data$Diversity)
 
-model3 <- glmmTMB(Diversity ~ Treatment * Year + (1|Transect), family=gaussian(), data = all_data)
+model3 <- glmmTMB(Diversity ~ Treatment * Year + (1|Transect)+ offset(TrapTime), family=gaussian(), data = all_data)
 summary(model3)
 
 emmeans(model3, ~ Treatment * Year)
+emmeans(model3, ~ Year)
 
 
 
