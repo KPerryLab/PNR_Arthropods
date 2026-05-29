@@ -1,7 +1,7 @@
 # ---- Powdermill Nature Preserve Community Data ----
 
 library(dplyr)
-library(vegan)
+
 
 # ---- 2015 data ----
 pnr2015 <- read.csv("Data/Processed/PNR2015_InvertebrateCommunity.csv")
@@ -128,7 +128,7 @@ all_data <- read.csv("Data/Saved/pnr_clean.csv")
 
 
 
-# ---- GLMM ----
+# ---- GLMM Combined----
 mean(all_data$Abundance)
 var(all_data$Abundance)
 
@@ -177,11 +177,120 @@ emmeans(model3, ~ Treatment * Year)
 emmeans(model3, ~ Year)
 
 
+# ---- NMDS ----
 
+library(vegan)
+ community <- all_data[, -c(1:7, 92:94)]
+ meta <- all_data[, c(2,7)]
 
+ 
+ nmds1 <- metaMDS(community, 
+                distance = "bray",   
+                k = 2,               
+                trymax = 100)
+ 
+ 
+ scores_df <- as.data.frame(scores(nmds1, display = "sites"))
+ scores_df <- cbind(scores_df, meta)
+ 
+ library(ggplot2)
+ 
+ ggplot(scores_df, aes(NMDS1, NMDS2, color = Treatment, shape = as.factor(Year))) +
+   geom_point(size = 3) +
+   theme_minimal()
 
+# ---- NMDS 2015 ----
+ 
+ all_2015 <- all_data[which(all_data$Year== "2015"), ]
+ 
+ community15 <- all_2015[, -c(1:7, 92:94)]
+ meta15 <- all_2015[, c(1,2)]
+ 
+ 
+ nmds15 <- metaMDS(community15, 
+                  distance = "bray",   
+                  k = 2,               
+                  trymax = 100)
+ 
+ 
+ scores_15 <- as.data.frame(scores(nmds15, display = "sites"))
+ scores_15 <- cbind(scores_15, meta15)
+ 
+ library(ggplot2)
+ 
+ ggplot(scores_15, aes(NMDS1, NMDS2, color = Treatment, fill = Treatment)) +
+   geom_point(size = 3) +
+   stat_ellipse(geom = "polygon", alpha = 0.2, color = NA)+
+      theme_minimal() +
+   labs(title = "PNR 2015") +
+   theme(plot.title = element_text(hjust = 0.5))
+ 
+ adonis15 <- adonis2(community15 ~ Treatment, data = meta15, method = "bray")
+ adonis15
 
+# ---- NMDS 2022 ----
+ 
+ all_2022 <- all_data[which(all_data$Year== "2022"), ]
+ 
+ community22 <- all_2022[, -c(1:7, 92:94)]
+ meta22 <- all_2022[, c(1,2)]
+ 
+ 
+ nmds22 <- metaMDS(community22, 
+                   distance = "bray",   
+                   k = 2,               
+                   trymax = 100)
+ 
+ 
+ scores_22 <- as.data.frame(scores(nmds22, display = "sites"))
+ scores_22 <- cbind(scores_22, meta22)
+ 
 
-
-
-
+ 
+ ggplot(scores_22, aes(NMDS1, NMDS2, color = Treatment, fill = Treatment)) +
+   geom_point(size = 3) +
+   stat_ellipse(geom = "polygon", alpha = 0.2, color = NA)+
+   theme_minimal() +
+   labs(title = "PNR 2022") +
+   theme(plot.title = element_text(hjust = 0.5))
+ 
+ 
+ adonis22 <- adonis2(community22 ~ Treatment, data = meta22, method = "bray")
+ adonis22
+ 
+ 
+ 
+# ---- GLMM for 2015 ----
+ model1 <- glmmTMB(Abundance ~ Treatment + (1|Transect) + offset(log(TrapTime)), family=nbinom2(), data = all_2015)
+ 
+ summary(model1)
+ 
+ emmeans(model1, ~Treatment)
+ 
+ model2 <- glmmTMB(Richness ~ Treatment + (1|Transect) + offset(log(TrapTime)), family=poisson(), data = all_2015)
+ 
+ summary(model2)
+ emmeans(model2, ~Treatment)
+ 
+ model3 <- glmmTMB(Diversity ~ Treatment + (1|Transect) + offset(TrapTime), family=gaussian(), data = all_2015)
+ 
+ summary(model3)
+ emmeans(model3, ~Treatment)
+ 
+# ---- GLMM for 2022 ----
+ model1 <- glmmTMB(Abundance ~ Treatment + (1|Transect) + offset(log(TrapTime)), family=nbinom2(), data = all_2022)
+ 
+ summary(model1)
+ 
+ emmeans(model1, ~Treatment)
+ 
+ model2 <- glmmTMB(Richness ~ Treatment + (1|Transect) + offset(log(TrapTime)), family=poisson(), data = all_2022)
+ 
+ summary(model2)
+ emmeans(model2, ~Treatment)
+ 
+ model3 <- glmmTMB(Diversity ~ Treatment + (1|Transect) + offset(TrapTime), family=gaussian(), data = all_2022)
+ 
+ summary(model3)
+ emmeans(model3, ~Treatment)
+ 
