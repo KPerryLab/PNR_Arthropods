@@ -133,8 +133,20 @@ mean(all_data$Abundance)
 var(all_data$Abundance)
 
 
+summary_table <- all_data %>%
+  group_by(Year, Treatment) %>%
+  summarise(
+    mean   = mean(Abundance, na.rm = TRUE),
+    median = median(Abundance, na.rm = TRUE),
+    max   = max(Abundance, na.rm = TRUE),
+    min   = min(Abundance, na.rm = TRUE),
+    var    = var(Abundance, na.rm = TRUE),
+    .groups      = "drop"
+  )
+summary_table
 
 library(glmmTMB)
+library(DHARMa)
 all_data$Year <- as.factor(all_data$Year)
 all_data$Treatment <- as.factor(all_data$Treatment)
 all_data$Transect <- as.factor(all_data$Transect)
@@ -294,3 +306,84 @@ library(vegan)
  summary(model3)
  emmeans(model3, ~Treatment)
  
+# ---- Species summaries ----
+ colnames(all_data)
+ library(dplyr)
+ library(multcomp)
+ species_summary <- all_data %>%
+   dplyr::select(-Quadrat, -Treatment, -Transect, -DateSet, -DateColl, -TrapTime, -Year, -Abundance, -Richness, -Diversity) %>%
+   dplyr::summarise(across(everything(), ~ mean(. > 0, na.rm = TRUE))) %>%
+   tidyr::pivot_longer(cols = everything(), names_to = "Species", values_to = "Proportion") %>%
+   arrange(desc(Proportion)) #%>%
+   #dplyr::filter(Proportion >= 0.30) 
+ # dplyr::pull(Species)
+ 
+ print(species_summary$Species)
+ 
+# ---- GLMM for taxa ----
+ mean(all_data$Araneae)
+ var(all_data$Araneae)
+ 
+ aran <- glmmTMB(Araneae ~ Treatment * Year + (1|Transect)+ offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ summary(aran)
+ emmeans(aran, ~ Treatment * Year)
+ 
+ tomo <- glmmTMB(Tomoceridae ~ Treatment * Year + (1|Transect)+  offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ summary(tomo)
+ emmeans(tomo, ~ Treatment * Year)
+
+ dicy <- glmmTMB(Dicyrtomidae ~ Treatment * Year +  offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ summary(dicy)
+ emmeans(dicy, ~ Treatment * Year)
+ 
+ 
+ hypo <- glmmTMB(Hypogastruridae ~ Treatment * Year +  offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ summary(hypo)
+ emmeans(hypo, ~ Treatment * Year)
+ 
+ 
+ stap <- glmmTMB(Staphylinidae ~ Treatment * Year +  offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ summary(stap)
+ stapl<-emmeans(stap, ~ Treatment * Year)
+ cld(stapl, Letters = letters, adjust = "tukey")
+ 
+ poly <- glmmTMB(Polydesmida ~ Treatment * Year +  offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ summary(poly)
+ polyl<-emmeans(poly, ~ Treatment * Year)
+ cld(polyl, Letters = letters, adjust = "tukey")
+ 
+ ento <- glmmTMB(Entomobryidae ~ Treatment * Year +  offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ summary(ento)
+ entol<-emmeans(ento, ~ Treatment * Year)
+ cld(entol, Letters = letters, adjust = "tukey")
+ 
+ 
+ cara <- glmmTMB(Carabidae ~ Treatment * Year +  offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ summary(cara)
+ caral<-emmeans(cara, ~ Treatment * Year)
+ cld(caral, Letters = letters, adjust = "tukey")
+
+ coll <- glmmTMB(Collembola ~ Treatment * Year +  offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ summary(coll)
+ colll<-emmeans(coll, ~ Treatment * Year)
+ cld(colll, Letters = letters, adjust = "tukey")
+ 
+ 
+ coll <- glmmTMB(Collembola ~ Treatment * Year +  offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ summary(coll)
+ colll<-emmeans(coll, ~ Treatment * Year)
+ cld(colll, Letters = letters, adjust = "tukey")
+ 
+ 
+ 
+ 
+ 
+
+ 
+  
+ 
+ 
+ 
+ 
+ 
+  
