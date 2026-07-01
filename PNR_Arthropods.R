@@ -7,7 +7,7 @@ library(dplyr)
 pnr2015 <- read.csv("Data/Processed/PNR2015_InvertebrateCommunity.csv")
 pnr15 <- pnr2015[pnr2015$Quadrat >= 41, ]   # only keeping the treatments (quadrats) that overlap with 2022 data , i.e., 41-64
 pnr15 <- na.omit(pnr15)
-pnr15 <- pnr15[, -c(3:5,8)]
+pnr15 <- pnr15[, -c(3,4,8)]
 pnr15$Treatment <- as.factor(pnr15$Treatment)
 levels(pnr15$Treatment)
 
@@ -18,18 +18,22 @@ pnr15 <- pnr15 %>% mutate(Treatment = dplyr::recode(Treatment,
 levels(pnr15$Treatment)
 str(pnr15)
 colSums(is.na(pnr15))
-pnr15 <- pnr15 %>%  mutate(across(5:last_col(), ~ as.numeric(as.character(.))))
+pnr15 <- pnr15 %>%  mutate(across(6:last_col(), ~ as.numeric(as.character(.))))
 
+
+# Combining Dicyrtomidae and Katiannidae as Globular Springtails
+pnr15 <- pnr15 %>% 
+  mutate(Glob_Springt = Dicyrtomidae + Katiannidae, .keep = "unused")
 
 # ---- 2022 data ----
 pnr2022 <- read.csv("Data/Processed/Powdermill_Community_2022.csv")
 pnr22<- na.omit(pnr2022)
-pnr22 <- pnr22[, -c(2,4,5,8)]
+pnr22 <- pnr22[, -c(2,4,8)]
 pnr22 <- pnr22 %>% rename(Quadrat = Site_ID)  # for naming consistency
 str(pnr22)
 colSums(is.na(pnr22))
-pnr22$Collembola[is.na(pnr22$Collembola)] <- 0
-colSums(is.na(pnr22))
+# pnr22$Collembola[is.na(pnr22$Collembola)] <- 0
+# colSums(is.na(pnr22))
 
 pnr22$Treatment <- as.factor(pnr22$Treatment)
 levels(pnr22$Treatment)
@@ -37,6 +41,14 @@ pnr22 <- pnr22 %>% mutate(Treatment = dplyr::recode(Treatment,
                                                     "Forest " = "Forest", 
                                                     "windthrow" = "Windthrow"))
 levels(pnr22$Treatment)
+
+pnr22 <- pnr22 %>% select(-Coleoptera, -Collembola, -Protura, -Diplura)
+
+# Combining Dicyrtomidae, Katiannidae, Bourletiellidae and Sminthuridae as Globular Springtails
+pnr22 <- pnr22 %>% 
+  mutate(Glob_Springt = Dicyrtomidae + Katiannidae + Bourletiellidae + Sminthuridae, .keep = "unused")
+
+pnr22 <- pnr22 %>% rename(Ptiliidae = Ptilidae)
 
 # # Adding Paronellidae into Entomobryidae 
 # 
@@ -53,8 +65,8 @@ levels(pnr22$Treatment)
 pnr15$Year <- "2015"
 pnr22$Year <- "2022"
 
-species_cols_pnr15 <- colnames(pnr15)[!(colnames(pnr15) %in% c("Quadrat", "Treatment", "DateSet" , "DateColl", "Year"))]
-species_cols_pnr22 <- colnames(pnr22)[!(colnames(pnr22) %in% c("Quadrat", "Treatment", "DateSet" , "DateColl", "Year"))]
+species_cols_pnr15 <- colnames(pnr15)[!(colnames(pnr15) %in% c("Quadrat", "Treatment", "Interval", "DateSet" , "DateColl", "Year"))]
+species_cols_pnr22 <- colnames(pnr22)[!(colnames(pnr22) %in% c("Quadrat", "Treatment", "Interval", "DateSet" , "DateColl", "Year"))]
 
 
 all_species <- union(species_cols_pnr15, species_cols_pnr22)  # all species in both years combined
@@ -66,12 +78,12 @@ pnr15[missing_in_pnr15] <- 0
 
 
 missing_in_pnr22 <- setdiff(all_species, species_cols_pnr22)
-pnr22[missing_in_pnr22] <- 0
+# pnr22[missing_in_pnr22] <- 0
 
 
 
-pnr15 <- pnr15[, c("Quadrat", "Treatment", "DateSet" , "DateColl", "Year", all_species)]
-pnr22 <- pnr22[, c("Quadrat", "Treatment", "DateSet" , "DateColl", "Year", all_species)]
+pnr15 <- pnr15[, c("Quadrat", "Treatment", "Interval", "DateSet" , "DateColl", "Year", all_species)]
+pnr22 <- pnr22[, c("Quadrat", "Treatment", "Interval", "DateSet" , "DateColl", "Year", all_species)]
 
 
 
@@ -91,19 +103,20 @@ traploc <- traploc[ , c(1,4)]
 all_data <- left_join(all_data, traploc, by = "Quadrat")
 
 
-all_data <- all_data %>%  relocate(90, .before = 3)
+all_data <- all_data %>%  relocate(53, .before = 3)
 
 
 colSums(is.na(all_data))
-all_data$Collembola[is.na(all_data$Collembola)] <- 0
-colSums(is.na(all_data))
+# all_data$Collembola[is.na(all_data$Collembola)] <- 0
+# colSums(is.na(all_data))
 
-all_data <- all_data %>%  mutate(across(7:last_col(), ~ as.numeric(as.character(.))))
+all_data <- all_data %>%  mutate(across(8:last_col(), ~ as.numeric(as.character(.))))
 
+library(vegan)
 
-all_data$Abundance <- rowSums(all_data[,7:90], na.rm=TRUE)
-all_data$Richness <- apply(all_data[,7:90]>0,1,sum)
-all_data$Diversity <- all_data %>% select(-c(1:6)) %>%  diversity(index = "shannon")
+all_data$Abundance <- rowSums(all_data[,8:53], na.rm=TRUE)
+all_data$Richness <- apply(all_data[,8:53]>0,1,sum)
+all_data$Diversity <- all_data %>% select(-c(1:7)) %>%  diversity(index = "shannon")
 str(all_data)
 all_data$Richness <- as.numeric(all_data$Richness)
 
@@ -114,10 +127,10 @@ all_data$DateSet  <- as.Date(all_data$DateSet, format = "%m/%d/%Y")
 
 all_data$TrapTime <- as.numeric(all_data$DateColl - all_data$DateSet)
 
-all_data <- all_data %>%  relocate(94, .before = 6)
+all_data <- all_data %>%  relocate(57, .before = 7)
 
 
-# write.csv(all_data, "Data/Saved/pnr_clean.csv", row.names = FALSE)
+write.csv(all_data, "Data/Saved/pnr_clean.csv", row.names = FALSE)
 
 
 # ---- Cleaned and Combined Data (2015 and 2022) ----
@@ -192,8 +205,8 @@ emmeans(model3, ~ Year)
 # ---- NMDS ----
 
 library(vegan)
- community <- all_data[, -c(1:7, 92:94)]
- meta <- all_data[, c(2,7)]
+ community <- all_data[, -c(1:8, 55:57)]
+ meta <- all_data[, c(2,8)]
 
  
  nmds1 <- metaMDS(community, 
@@ -215,7 +228,7 @@ library(vegan)
  
  all_2015 <- all_data[which(all_data$Year== "2015"), ]
  
- community15 <- all_2015[, -c(1:7, 92:94)]
+ community15 <- all_2015[, -c(1:8, 55:57)]
  meta15 <- all_2015[, c(1,2)]
  
  
@@ -244,7 +257,7 @@ library(vegan)
  
  all_2022 <- all_data[which(all_data$Year== "2022"), ]
  
- community22 <- all_2022[, -c(1:7, 92:94)]
+ community22 <- all_2022[, -c(1:8, 55:57)]
  meta22 <- all_2022[, c(1,2)]
  
  
@@ -311,7 +324,7 @@ library(vegan)
  library(dplyr)
  library(multcomp)
  species_summary <- all_data %>%
-   dplyr::select(-Quadrat, -Treatment, -Transect, -DateSet, -DateColl, -TrapTime, -Year, -Abundance, -Richness, -Diversity) %>%
+   dplyr::select(-Quadrat, -Treatment, -Transect, -Interval, -DateSet, -DateColl, -TrapTime, -Year, -Abundance, -Richness, -Diversity) %>%
    dplyr::summarise(across(everything(), ~ mean(. > 0, na.rm = TRUE))) %>%
    tidyr::pivot_longer(cols = everything(), names_to = "Species", values_to = "Proportion") %>%
    arrange(desc(Proportion)) #%>%
