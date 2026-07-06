@@ -339,53 +339,119 @@ library(vegan)
  
  aran <- glmmTMB(Araneae ~ Treatment * Year + (1|Transect)+ offset(log(TrapTime)), family=nbinom2(), data = all_data)
  summary(aran)
- emmeans(aran, ~ Treatment * Year)
+ simulateResiduals(aran, plot = TRUE)
+ aranl <- emmeans(aran, ~ Treatment * Year)
+ cld(aranl, Letters = letters, adjust = "tukey")
+ emmip(aran, Treatment ~ Year)
  
  tomo <- glmmTMB(Tomoceridae ~ Treatment * Year + (1|Transect)+  offset(log(TrapTime)), family=nbinom2(), data = all_data)
  summary(tomo)
- emmeans(tomo, ~ Treatment * Year)
-
- dicy <- glmmTMB(Dicyrtomidae ~ Treatment * Year +  offset(log(TrapTime)), family=nbinom2(), data = all_data)
- summary(dicy)
- emmeans(dicy, ~ Treatment * Year)
+ tomol <- emmeans(tomo, ~ Treatment * Year)
+ cld(tomol, Letters = letters, adjust = "tukey")
+ emmip(tomo, Treatment ~ Year)
  
+ form <- glmmTMB(Formicidae ~ Treatment * Year + (1|Transect)+  offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ summary(form)
+ forml <- emmeans(form, ~ Treatment * Year)
+ cld(forml, Letters = letters, adjust = "tukey")
+ emmip(form, Treatment ~ Year)
+ 
+
+ symp <- glmmTMB(Symphypleona ~ Treatment * Year +  offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ summary(symp)
+ sympl <- emmeans(symp, ~ Treatment * Year)
+ cld(sympl, Letters = letters, adjust = "tukey")
+ emmip(symp, Treatment ~ Year)
+ 
+ glob <- glmmTMB(Glob_Springt ~ Treatment * Year +  offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ summary(glob)
+ globl <- emmeans(glob, ~ Treatment * Year)
+ cld(globl, Letters = letters, adjust = "tukey")
+ emmip(glob, Treatment ~ Year)
  
  hypo <- glmmTMB(Hypogastruridae ~ Treatment * Year +  offset(log(TrapTime)), family=nbinom2(), data = all_data)
  summary(hypo)
- emmeans(hypo, ~ Treatment * Year)
+ hypol <- emmeans(hypo, ~ Treatment * Year)
+ cld(hypol, Letters = letters, adjust = "tukey")
+ emmip(hypo, Treatment ~ Year)
  
  
  stap <- glmmTMB(Staphylinidae ~ Treatment * Year +  offset(log(TrapTime)), family=nbinom2(), data = all_data)
  summary(stap)
  stapl<-emmeans(stap, ~ Treatment * Year)
  cld(stapl, Letters = letters, adjust = "tukey")
+ emmip(stap, Treatment ~ Year)
+ 
+ 
+ isot <- glmmTMB(Isotomidae ~ Treatment * Year +  offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ summary(isot)
+ isotl<-emmeans(isot, ~ Treatment * Year)
+ cld(isotl, Letters = letters, adjust = "tukey")
+ emmip(isot, Treatment ~ Year)
+ 
  
  poly <- glmmTMB(Polydesmida ~ Treatment * Year +  offset(log(TrapTime)), family=nbinom2(), data = all_data)
  summary(poly)
  polyl<-emmeans(poly, ~ Treatment * Year)
  cld(polyl, Letters = letters, adjust = "tukey")
+ emmip(poly, Treatment ~ Year)
  
  ento <- glmmTMB(Entomobryidae ~ Treatment * Year +  offset(log(TrapTime)), family=nbinom2(), data = all_data)
  summary(ento)
  entol<-emmeans(ento, ~ Treatment * Year)
  cld(entol, Letters = letters, adjust = "tukey")
- 
+ emmip(ento, Treatment ~ Year)
  
  cara <- glmmTMB(Carabidae ~ Treatment * Year +  offset(log(TrapTime)), family=nbinom2(), data = all_data)
  summary(cara)
  caral<-emmeans(cara, ~ Treatment * Year)
  cld(caral, Letters = letters, adjust = "tukey")
+ emmip(cara, Treatment ~ Year)
 
- coll <- glmmTMB(Collembola ~ Treatment * Year +  offset(log(TrapTime)), family=nbinom2(), data = all_data)
- summary(coll)
- colll<-emmeans(coll, ~ Treatment * Year)
- cld(colll, Letters = letters, adjust = "tukey")
+ snai <- glmmTMB(Snails ~ Treatment * Year +  offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ summary(snai)
+ snail<-emmeans(snai, ~ Treatment * Year)
+ cld(snail, Letters = letters, adjust = "tukey")
+ emmip(snai, Treatment ~ Year)
  
  
- coll <- glmmTMB(Collembola ~ Treatment * Year +  offset(log(TrapTime)), family=nbinom2(), data = all_data)
- summary(coll)
- colll<-emmeans(coll, ~ Treatment * Year)
- cld(colll, Letters = letters, adjust = "tukey")
+ nean <- glmmTMB(Neanuridae ~ Treatment * Year +  offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ summary(nean)
+ neanl<-emmeans(nean, ~ Treatment * Year)
+ cld(neanl, Letters = letters, adjust = "tukey")
+ emmip(nean, Treatment ~ Year)
+ 
+ 
+ opil <- glmmTMB(Opiliones ~ Treatment * Year +  offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ summary(opil)
+ opill<-emmeans(opil, ~ Treatment * Year)
+ cld(opill, Letters = letters, adjust = "tukey")
+ emmip(opil, Treatment ~ Year)
+ 
+ 
+ niti <- glmmTMB(Nitidulidae ~ Treatment * Year +  offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ summary(niti)
+ nitil<-emmeans(niti, ~ Treatment * Year)
+ cld(nitil, Letters = letters, adjust = "tukey")
+ emmip(niti, Treatment ~ Year)
+ 
+ 
+ scol <- glmmTMB(Scolytinae ~ Treatment * Year +  offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ summary(scol)
+ scoll<-emmeans(scol, ~ Treatment * Year)
+ cld(scoll, Letters = letters, adjust = "tukey")
+ emmip(scol, Treatment ~ Year)
+ 
+ 
+ rhap <- glmmTMB(Rhaphidophoridae ~ Treatment * Year +  offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ summary(rhap)
+ rhapl<-emmeans(rhap, ~ Treatment * Year)
+ cld(rhapl, Letters = letters, adjust = "tukey")
+ emmip(rhap, Treatment ~ Year)
+ 
+ 
+ 
+ 
  
  
  
