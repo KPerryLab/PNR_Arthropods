@@ -149,6 +149,29 @@ all_data <- read.csv("Data/Saved/pnr_clean.csv")
 
 
 
+all_data$StartJulian <- as.POSIXlt(all_data$DateSet)$yday + 1
+all_data$EndJulian   <- as.POSIXlt(all_data$DateColl)$yday + 1
+
+library(dplyr)
+library(lubridate)
+
+interval_dates <- all_data %>%
+  group_by(Year, Interval) %>%
+  summarise(
+    StartDate = first(DateSet),
+    EndDate = first(DateColl),
+    StartJulian = first(StartJulian),
+    EndJulian = first(EndJulian),
+    .groups = "drop"
+  )
+
+
+all_data <- all_data %>%
+  filter(Year != 2022 | Interval %in% 1:6)
+
+
+
+
 # ---- GLMM Combined----
 mean(all_data$Abundance)
 var(all_data$Abundance)
@@ -389,7 +412,7 @@ library(vegan)
 
  symp <- glmmTMB(Symphypleona ~ Treatment * Year +  offset(log(TrapTime)), family=nbinom2(), data = all_data)
  summary(symp)
- sympl <- emmeans(symp, ~ Treatment | Year)
+ sympl <- emmeans(symp, ~ Treatment * Year)
  cld(sympl, Letters = letters)
  emmip(symp, Treatment ~ Year)
  
@@ -417,7 +440,7 @@ library(vegan)
  
  poly <- glmmTMB(Polydesmida ~ Treatment * Year +  offset(log(TrapTime)), family=nbinom2(), data = all_data)
  summary(poly)
- polyl<-emmeans(poly, ~ Treatment|Year)
+ polyl<-emmeans(poly, ~ Treatment * Year)
  cld(polyl, Letters = letters)
  emmip(poly, Treatment ~ Year)
  
@@ -429,7 +452,7 @@ library(vegan)
  
  cara <- glmmTMB(Carabidae ~ Treatment * Year +  offset(log(TrapTime)), family=nbinom2(), data = all_data)
  summary(cara)
- caral<-emmeans(cara, ~ Treatment | Year)
+ caral<-emmeans(cara, ~ Treatment * Year)
  cld(caral, Letters = letters, adjust="tukey")
  emmip(cara, Treatment ~ Year)
 
@@ -463,7 +486,7 @@ library(vegan)
  
  scol <- glmmTMB(Scolytinae ~ Treatment * Year +  offset(log(TrapTime)), family=nbinom2(), data = all_data)
  summary(scol)
- scoll<-emmeans(scol, ~ Treatment | Year)
+ scoll<-emmeans(scol, ~ Treatment * Year)
  cld(scoll, Letters = letters, adjust="tukey")
  emmip(scol, Treatment ~ Year)
  
