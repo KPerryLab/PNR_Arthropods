@@ -122,11 +122,11 @@ all_data <- all_data %>%  mutate(across(8:last_col(), ~ as.numeric(as.character(
 
 library(vegan)
 
-all_data$Abundance <- rowSums(all_data[,8:51], na.rm=TRUE)
-all_data$Richness <- apply(all_data[,8:51]>0,1,sum)
-all_data$Diversity <- all_data %>% dplyr::select(-c(1:7,52,53)) %>%  diversity(index = "shannon")
-str(all_data)
-all_data$Richness <- as.numeric(all_data$Richness)
+# all_data$Abundance <- rowSums(all_data[,8:51], na.rm=TRUE)
+# all_data$Richness <- apply(all_data[,8:51]>0,1,sum)
+# all_data$Diversity <- all_data %>% dplyr::select(-c(1:7,52,53)) %>%  diversity(index = "shannon")
+# str(all_data)
+# all_data$Richness <- as.numeric(all_data$Richness)
 
 
 # Calculating trap duration 
@@ -145,30 +145,41 @@ write.csv(all_data, "Data/Saved/pnr_clean.csv", row.names = FALSE)
 
 all_data <- read.csv("Data/Saved/pnr_clean.csv")
 
+all_data <- all_data %>%
+  filter(Year != 2022 | Interval %in% 1:6)
 
 
+all_data <- all_data[, -c(5:7, 53:55)]
+str(all_data)
 
-
-all_data$StartJulian <- as.POSIXlt(all_data$DateSet)$yday + 1
-all_data$EndJulian   <- as.POSIXlt(all_data$DateColl)$yday + 1
+# all_data$StartJulian <- as.POSIXlt(all_data$DateSet)$yday + 1
+# all_data$EndJulian   <- as.POSIXlt(all_data$DateColl)$yday + 1
 
 library(dplyr)
 library(lubridate)
 
-interval_dates <- all_data %>%
-  group_by(Year, Interval) %>%
-  summarise(
-    StartDate = first(DateSet),
-    EndDate = first(DateColl),
-    StartJulian = first(StartJulian),
-    EndJulian = first(EndJulian),
-    .groups = "drop"
-  )
+# interval_dates <- all_data %>%
+#   group_by(Year, Interval) %>%
+#   summarise(
+#     StartDate = first(DateSet),
+#     EndDate = first(DateColl),
+#     StartJulian = first(StartJulian),
+#     EndJulian = first(EndJulian),
+#     .groups = "drop"
+#   )
+# 
+# 
+# ---- Pooled by Interval ----
 
+all_data <- all_data %>%  group_by(Quadrat, Treatment, Year, Transect) %>%
+  summarise(across(everything(), ~ sum(.x, na.rm = TRUE)),.groups = "drop")
 
-all_data <- all_data %>%
-  filter(Year != 2022 | Interval %in% 1:6)
-
+all_data$Abundance <- rowSums(all_data[,6:49], na.rm=TRUE)
+all_data$Richness <- apply(all_data[,6:49]>0,1,sum)
+all_data$Diversity <- all_data %>% dplyr::select(-c(1:5,50,51)) %>%  diversity(index = "shannon")
+all_data$hill_number <- exp(all_data$Diversity)
+str(all_data)
+all_data$Richness <- as.numeric(all_data$Richness)
 
 
 
@@ -227,11 +238,11 @@ emmip(model2, Treatment ~ Year, type = "response")
 
 
 
-mean(all_data$Diversity)
-var(all_data$Diversity)
-hist(all_data$Diversity)
+mean(all_data$hill_number)
+var(all_data$hill_number)
+hist(all_data$hill_number)
 
-model3 <- glmmTMB(Diversity ~ Treatment * Year + (1|Transect)+ offset(TrapTime), family=gaussian(), data = all_data)
+model3 <- glmmTMB(hill_number ~ Treatment * Year + (1|Transect)+ offset(TrapTime), family=gaussian(), data = all_data)
 summary(model3)
 
 model3l <- emmeans(model3, ~ Treatment * Year)
@@ -239,6 +250,9 @@ cld(model3l, Letters = letters)
 emmip(model3, Treatment ~ Year)
 
 # ---- NMDS ----
+
+all_data <- read.csv("Data/Saved/pnr_clean.csv")
+
 
 library(vegan)
  community <- all_data[, -c(1:8, 53:55)]
@@ -345,6 +359,8 @@ library(vegan)
  
  emmeans(model1, ~Treatment)
  
+ 
+ 
  model2 <- glmmTMB(Richness ~ Treatment + (1|Transect) + offset(log(TrapTime)), family=poisson(), data = all_2015)
  
  summary(model2)
@@ -377,7 +393,7 @@ library(vegan)
  library(dplyr)
 
  species_summary <- all_data %>%
-   dplyr::select(-Quadrat, -Treatment, -Transect, -Interval, -DateSet, -DateColl, -TrapTime, -Year, -Abundance, -Richness, -Diversity) %>%
+   dplyr::select(-Quadrat, -Treatment, -Transect, -TrapTime, -Year, -Abundance, -Richness, -Diversity, -hill_number) %>%
    dplyr::summarise(across(everything(), ~ mean(. > 0, na.rm = TRUE))) %>%
    tidyr::pivot_longer(cols = everything(), names_to = "Species", values_to = "Proportion") %>%
    arrange(desc(Proportion)) #%>%
@@ -410,88 +426,90 @@ library(vegan)
  emmip(form, Treatment ~ Year)
  
 
- symp <- glmmTMB(Symphypleona ~ Treatment * Year +  offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ symp <- glmmTMB(Symphypleona ~ Treatment * Year + (1|Transect)+ offset(log(TrapTime)), family=nbinom2(), data = all_data)
  summary(symp)
  sympl <- emmeans(symp, ~ Treatment * Year)
  cld(sympl, Letters = letters)
  emmip(symp, Treatment ~ Year)
  
  
- hypo <- glmmTMB(Hypogastruridae ~ Treatment * Year +  offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ hypo <- glmmTMB(Hypogastruridae ~ Treatment * Year + (1|Transect)+ offset(log(TrapTime)), family=nbinom2(), data = all_data)
  summary(hypo)
  hypol <- emmeans(hypo, ~ Treatment * Year)
  cld(hypol, Letters = letters)
  emmip(hypo, Treatment ~ Year)
  
  
- stap <- glmmTMB(Staphylinidae ~ Treatment * Year +  offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ stap <- glmmTMB(Staphylinidae ~ Treatment * Year + (1|Transect) + offset(log(TrapTime)), family=nbinom2(), data = all_data)
  summary(stap)
  stapl<-emmeans(stap, ~ Treatment * Year)
  cld(stapl, Letters = letters)
  emmip(stap, Treatment ~ Year)
  
  
- isot <- glmmTMB(Isotomidae ~ Treatment * Year +  offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ isot <- glmmTMB(Isotomidae ~ Treatment * Year + (1|Transect)+ offset(log(TrapTime)), family=nbinom2(), data = all_data)
  summary(isot)
  isotl<-emmeans(isot, ~ Treatment * Year)
  cld(isotl, Letters = letters)
  emmip(isot, Treatment ~ Year)
  
  
- poly <- glmmTMB(Polydesmida ~ Treatment * Year +  offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ poly <- glmmTMB(Polydesmida ~ Treatment * Year + (1|Transect)+ offset(log(TrapTime)), family=nbinom2(), data = all_data)
  summary(poly)
  polyl<-emmeans(poly, ~ Treatment * Year)
  cld(polyl, Letters = letters)
  emmip(poly, Treatment ~ Year)
  
- ento <- glmmTMB(Entomobryidae ~ Treatment * Year +  offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ ento <- glmmTMB(Entomobryidae ~ Treatment * Year + (1|Transect)+ offset(log(TrapTime)), family=nbinom2(), data = all_data)
  summary(ento)
  entol<-emmeans(ento, ~ Treatment * Year)
  cld(entol, Letters = letters)
  emmip(ento, Treatment ~ Year)
  
- cara <- glmmTMB(Carabidae ~ Treatment * Year +  offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ cara <- glmmTMB(Carabidae ~ Treatment * Year + (1|Transect) + offset(log(TrapTime)), family=nbinom2(), data = all_data)
  summary(cara)
  caral<-emmeans(cara, ~ Treatment * Year)
- cld(caral, Letters = letters, adjust="tukey")
+ cld(caral, Letters = letters)
  emmip(cara, Treatment ~ Year)
+ 
+ 
 
- snai <- glmmTMB(Snails ~ Treatment * Year +  offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ snai <- glmmTMB(Snails ~ Treatment * Year + (1|Transect)+ offset(log(TrapTime)), family=nbinom2(), data = all_data)
  summary(snai)
  snail<-emmeans(snai, ~ Treatment * Year)
  cld(snail, Letters = letters)
  emmip(snai, Treatment ~ Year)
  
  
- nean <- glmmTMB(Neanuridae ~ Treatment * Year +  offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ nean <- glmmTMB(Neanuridae ~ Treatment * Year +  (1|Transect)+ offset(log(TrapTime)), family=nbinom2(), data = all_data)
  summary(nean)
  neanl<-emmeans(nean, ~ Treatment * Year)
  cld(neanl, Letters = letters)
  emmip(nean, Treatment ~ Year)
  
  
- opil <- glmmTMB(Opiliones ~ Treatment * Year +  offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ opil <- glmmTMB(Opiliones ~ Treatment * Year + (1|Transect)+ offset(log(TrapTime)), family=nbinom2(), data = all_data)
  summary(opil)
  opill<-emmeans(opil, ~ Treatment * Year)
  cld(opill, Letters = letters)
  emmip(opil, Treatment ~ Year)
  
  
- niti <- glmmTMB(Nitidulidae ~ Treatment * Year +  offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ niti <- glmmTMB(Nitidulidae ~ Treatment * Year + (1|Transect)+ offset(log(TrapTime)), family=nbinom2(), data = all_data)
  summary(niti)
  nitil<-emmeans(niti, ~ Treatment * Year)
  cld(nitil, Letters = letters)
  emmip(niti, Treatment ~ Year)
  
  
- scol <- glmmTMB(Scolytinae ~ Treatment * Year +  offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ scol <- glmmTMB(Scolytinae ~ Treatment * Year +  (1|Transect) + offset(log(TrapTime)), family=nbinom2(), data = all_data)
  summary(scol)
  scoll<-emmeans(scol, ~ Treatment * Year)
  cld(scoll, Letters = letters, adjust="tukey")
  emmip(scol, Treatment ~ Year)
  
  
- rhap <- glmmTMB(Rhaphidophoridae ~ Treatment * Year +  offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ rhap <- glmmTMB(Rhaphidophoridae ~ Treatment * Year + (1|Transect)+ offset(log(TrapTime)), family=nbinom2(), data = all_data)
  summary(rhap)
  rhapl<-emmeans(rhap, ~ Treatment * Year)
  cld(rhapl, Letters = letters)
