@@ -178,10 +178,20 @@ all_data$Abundance <- rowSums(all_data[,6:49], na.rm=TRUE)
 all_data$Richness <- apply(all_data[,6:49]>0,1,sum)
 all_data$Diversity <- all_data %>% dplyr::select(-c(1:5,50,51)) %>%  diversity(index = "shannon")
 all_data$hill_number <- exp(all_data$Diversity)
+
+library(hillR) # just FYI, can also use this package (KIP)
+# Hill numbers
+# q = 0 (default) for species richness
+# q = 1 for get shannon entropy
+# q = 2 for inverse Simpson
+
+all_data$hill.richness <- hill_taxa(all_data[,6:49], q = 0, MARGIN = 1)
+all_data$hill.shannon <- hill_taxa(all_data[,6:49], q = 1, MARGIN = 1)
+
 str(all_data)
-all_data$Richness <- as.numeric(all_data$Richness)
+# all_data$Richness <- as.numeric(all_data$Richness)
 
-
+colSums(all_data[,6:49])
 
 # ---- GLMM Combined----
 mean(all_data$Abundance)
@@ -209,6 +219,7 @@ all_data$Transect <- as.factor(all_data$Transect)
 
 levels(all_data$Treatment)
 
+# for these models, did you run with a poisson distribution first? (KIP)
 
 model1 <- glmmTMB(Abundance ~ Treatment * Year + (1|Transect) + offset(log(TrapTime)), family=nbinom2(), data = all_data)
 
@@ -222,12 +233,29 @@ model1l <- emmeans(model1, ~ Treatment * Year)
 cld(model1l, Letters = letters)
 emmip(model1, Treatment ~ Year, type = "response")
 
+library(car)
+Anova(model1, type = "III")
+emmeans(model1, pairwise ~ Year)
+emmeans(model1, pairwise ~ Treatment)
+
+testDispersion(model1)
+res.mod.1 <- simulateResiduals(model1)
+plotQQunif(res.mod.1)
+testCategorical(res.mod.1, catPred = all_data$Treatment)
+testCategorical(res.mod.1, catPred = all_data$Year)
+testZeroInflation(res.mod.1)
+
 
 mean(all_data$Richness)
 var(all_data$Richness)
 
+# this model has issues with dispersion (KIP)
 
-model2 <- glmmTMB(Richness ~ Treatment * Year + (1|Transect)+ offset(log(TrapTime)), family=poisson(), data = all_data)
+model2 <- glmmTMB(Richness ~ Treatment * Year + (1|Transect)+ offset(log(TrapTime)), family=nbinom2(), data = all_data)
+
+library(lme4)
+library(lmerTest)
+model2 <- glmer.nb(Richness ~ Treatment * Year + (1|Transect) + offset(log(TrapTime)), family = poisson, data = all_data)
 
 summary(model2)
 
@@ -235,7 +263,16 @@ model2l <- emmeans(model2, ~ Treatment * Year)
 cld(model2l, Letters = letters)
 emmip(model2, Treatment ~ Year, type = "response")
 
+Anova(model2, type = "III")
+emmeans(model2, pairwise ~ Year)
+emmeans(model2, pairwise ~ Treatment)
 
+testDispersion(model2)
+res.mod.2 <- simulateResiduals(model2)
+plotQQunif(res.mod.2)
+testCategorical(res.mod.2, catPred = all_data$Treatment)
+testCategorical(res.mod.2, catPred = all_data$Year)
+testZeroInflation(res.mod.2)
 
 
 mean(all_data$hill_number)
@@ -248,6 +285,17 @@ summary(model3)
 model3l <- emmeans(model3, ~ Treatment * Year)
 cld(model3l, Letters = letters)
 emmip(model3, Treatment ~ Year)
+
+Anova(model3, type = "III")
+emmeans(model3, pairwise ~ Year)
+emmeans(model3, pairwise ~ Treatment)
+
+testDispersion(model3)
+res.mod.3 <- simulateResiduals(model3)
+plotQQunif(res.mod.3)
+testCategorical(res.mod.3, catPred = all_data$Treatment)
+testCategorical(res.mod.3, catPred = all_data$Year)
+testZeroInflation(res.mod.3)
 
 # ---- NMDS ----
 
