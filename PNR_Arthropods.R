@@ -220,14 +220,39 @@ all_data$Transect <- as.factor(all_data$Transect)
 levels(all_data$Treatment)
 
 # for these models, did you run with a poisson distribution first? (KIP)
+# the abundance model does not converge with poisson 
 
-model1 <- glmmTMB(Abundance ~ Treatment * Year + (1|Transect) + offset(log(TrapTime)), family=nbinom2(), data = all_data)
+
+# model did not converge
+
+model1_RE <- glmmTMB(Abundance ~ Treatment * Year + (1|Transect) + offset(log(TrapTime)), family=nbinom2(), data = all_data)
+
+summary(model1_RE)
+
+with(all_data, table(Transect, Treatment, Year))
+
+VarCorr(model1_RE)
+
+
+# Conditional model:
+#   Groups   Name        Std.Dev. 
+# Transect (Intercept) 1.204e-61
+
+# The among-transect variation seems to be close to 0
+
+# Model without the random effect 
+
+model1 <- glmmTMB(Abundance ~ Treatment * Year + offset(log(TrapTime)), family=nbinom2(), data = all_data)
 
 summary(model1)
+
+AIC(model1_RE, model1)
+
 
 
 library(emmeans)
 library(multcomp)
+library(multcompView)
 
 model1l <- emmeans(model1, ~ Treatment * Year)
 cld(model1l, Letters = letters)
@@ -251,13 +276,25 @@ var(all_data$Richness)
 
 # this model has issues with dispersion (KIP)
 
-model2 <- glmmTMB(Richness ~ Treatment * Year + (1|Transect)+ offset(log(TrapTime)), family=nbinom2(), data = all_data)
+model2_RE <- glmmTMB(Richness ~ Treatment * Year + (1|Transect)+ offset(log(TrapTime)), family=nbinom2(), data = all_data)
 
-library(lme4)
-library(lmerTest)
-model2 <- glmer.nb(Richness ~ Treatment * Year + (1|Transect) + offset(log(TrapTime)), family = poisson, data = all_data)
+summary(model2_RE)
 
+VarCorr(model2_RE) 
+# Conditional model:
+#   Groups   Name        Std.Dev.  
+# Transect (Intercept) 9.9745e-06   # close to 0
+
+model2 <- glmmTMB(Richness ~ Treatment * Year + offset(log(TrapTime)), family=poisson(), data = all_data)
 summary(model2)
+
+AIC(model2_RE, model2)
+
+# library(lme4)
+# library(lmerTest)
+# model2 <- glmer.nb(Richness ~ Treatment * Year + (1|Transect) + offset(log(TrapTime)), family = poisson, data = all_data)
+# glmer.nb itself is for negative binomial
+# summary(model2)
 
 model2l <- emmeans(model2, ~ Treatment * Year)
 cld(model2l, Letters = letters)
@@ -267,12 +304,18 @@ Anova(model2, type = "III")
 emmeans(model2, pairwise ~ Year)
 emmeans(model2, pairwise ~ Treatment)
 
-testDispersion(model2)
+testDispersion(model2)  # dispersion problem , checking others below
 res.mod.2 <- simulateResiduals(model2)
 plotQQunif(res.mod.2)
 testCategorical(res.mod.2, catPred = all_data$Treatment)
 testCategorical(res.mod.2, catPred = all_data$Year)
 testZeroInflation(res.mod.2)
+
+
+model2_genpois <- glmmTMB(Richness ~ Treatment * Year + offset(log(TrapTime)), family=genpois(), data = all_data)
+summary(model2_genpois)
+testDispersion(model2_genpois)
+res.mod2_gp <- simulateResiduals(model2_genpois, plot = TRUE)  # better than poisson
 
 
 mean(all_data$hill_number)
