@@ -322,8 +322,19 @@ mean(all_data$hill_number)
 var(all_data$hill_number)
 hist(all_data$hill_number)
 
-model3 <- glmmTMB(hill_number ~ Treatment * Year + (1|Transect)+ offset(TrapTime), family=gaussian(), data = all_data)
+
+
+model3_RE <- glmmTMB(hill_number ~ Treatment * Year + (1|Transect), family=gaussian(), data = all_data)
+summary(model3_RE)
+testDispersion(model3_RE)
+
+
+model3 <- glmmTMB(hill_number ~ Treatment * Year, family=gaussian(), data = all_data)
 summary(model3)
+testDispersion(model3)
+
+
+AIC(model3_RE, model3)
 
 model3l <- emmeans(model3, ~ Treatment * Year)
 cld(model3l, Letters = letters)
@@ -333,12 +344,61 @@ Anova(model3, type = "III")
 emmeans(model3, pairwise ~ Year)
 emmeans(model3, pairwise ~ Treatment)
 
-testDispersion(model3)
+
 res.mod.3 <- simulateResiduals(model3)
 plotQQunif(res.mod.3)
 testCategorical(res.mod.3, catPred = all_data$Treatment)
 testCategorical(res.mod.3, catPred = all_data$Year)
 testZeroInflation(res.mod.3)
+
+
+
+
+# ---- Repeated Measures ----
+
+all_data_unpooled <- read.csv("Data/Saved/pnr_clean.csv")
+str(all_data_unpooled)
+
+
+all_data_unpooled <- all_data_unpooled %>% 
+  mutate(across(c(Quadrat, Treatment, Transect, Year, Interval), as.factor))
+lapply(all_data_unpooled[sapply(all_data_unpooled, is.factor)], levels)
+str(all_data_unpooled)
+
+mod_abundance <- glmmTMB(Abundance ~ Treatment * Year + (1|Quadrat) + offset(log(TrapTime)), family=nbinom2(), data = all_data_unpooled)
+
+summary(mod_abundance)
+simulateResiduals(mod_abundance, n = 1000, re.form = NULL,plot = TRUE)
+
+mod_abundance_int <- glmmTMB(Abundance ~ Treatment * Year + (1|Quadrat) + (1|Interval) + offset(log(TrapTime)), family=nbinom2(), data = all_data_unpooled)
+
+summary(mod_abundance_int)
+simulateResiduals(mod_abundance_int, n = 1000, re.form = NULL,plot = TRUE)
+
+Anova(mod_abundance_int, type = "III")
+emmeans(mod_abundance_int, pairwise ~ Year)
+emmeans(mod_abundance_int, pairwise ~ Treatment)
+
+mean(all_data_unpooled$Richness)
+var(all_data_unpooled$Richness)
+hist(all_data_unpooled$Richness)
+
+
+mod_richness <- glmmTMB(Richness ~ Treatment * Year + (1|Quadrat) + offset(log(TrapTime)), family=poisson(), data = all_data_unpooled)
+
+summary(mod_richness)
+simulateResiduals(mod_richness, plot = TRUE)
+
+mod_richness_compois <- glmmTMB(Richness ~ Treatment * Year + (1|Quadrat) + offset(log(TrapTime)), family=compois(), data = all_data_unpooled)
+
+summary(mod_richness_compois)
+simulateResiduals(mod_richness_compois,n = 1000, re.form = NULL, plot = TRUE)
+
+
+mod_richness_compois_int <- glmmTMB(Richness ~ Treatment * Year + (1|Quadrat) + (1|Interval) + offset(log(TrapTime)), family=compois(), data = all_data_unpooled)
+
+summary(mod_richness_compois_int)
+simulateResiduals(mod_richness_compois_int,n = 1000, re.form = NULL, plot = TRUE)
 
 # ---- NMDS ----
 
