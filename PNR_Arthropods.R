@@ -5,9 +5,8 @@ library(dplyr)
 
 # ---- 2015 data ----
 pnr2015 <- read.csv("Data/Processed/PNR2015_InvertebrateCommunity.csv")
-pnr15 <- pnr2015[pnr2015$Quadrat >= 41, ]   # only keeping the treatments (quadrats) that overlap with 2022 data , i.e., 41-64
-pnr15 <- na.omit(pnr15)
-pnr15 <- pnr15[, -c(3,4,8)]
+pnr15 <- na.omit(pnr2015)
+pnr15 <- pnr15 %>% select(-c(Canopy, Veg, Sorter))
 pnr15$Treatment <- as.factor(pnr15$Treatment)
 levels(pnr15$Treatment)
 
@@ -20,22 +19,17 @@ str(pnr15)
 colSums(is.na(pnr15))
 pnr15 <- pnr15 %>%  mutate(across(6:last_col(), ~ as.numeric(as.character(.))))
 
-
-# # Combining Dicyrtomidae and Katiannidae as Globular Springtails
-# pnr15 <- pnr15 %>% 
-#   mutate(Glob_Springt = Dicyrtomidae + Katiannidae, .keep = "unused")
-
+# Dicyrtomidae and Katiannidae combined into Symphypleona
 pnr15 <- pnr15[, !(names(pnr15) %in% c("Dicyrtomidae", "Katiannidae"))]
 
 # ---- 2022 data ----
 pnr2022 <- read.csv("Data/Processed/Powdermill_Community_2022.csv")
 pnr22<- na.omit(pnr2022)
-pnr22 <- pnr22[, -c(2,4,8)]
+pnr22 <- pnr22 %>% select(-c(Site_ID_2,Notes, Sorter))
 pnr22 <- pnr22 %>% rename(Quadrat = Site_ID)  # for naming consistency
 str(pnr22)
 colSums(is.na(pnr22))
-# pnr22$Collembola[is.na(pnr22$Collembola)] <- 0
-# colSums(is.na(pnr22))
+
 
 pnr22$Treatment <- as.factor(pnr22$Treatment)
 levels(pnr22$Treatment)
@@ -44,24 +38,14 @@ pnr22 <- pnr22 %>% mutate(Treatment = dplyr::recode(Treatment,
                                                     "windthrow" = "Windthrow"))
 levels(pnr22$Treatment)
 
+# Removing Orders
 pnr22 <- pnr22 %>% dplyr::select(-Coleoptera, -Collembola, -Protura, -Diplura)
 
-# Combining Dicyrtomidae, Katiannidae, Bourletiellidae and Sminthuridae as Globular Springtails
-# pnr22 <- pnr22 %>% 
-#   mutate(Glob_Springt = Dicyrtomidae + Katiannidae + Bourletiellidae + Sminthuridae, .keep = "unused")
-
-pnr22 <- pnr22[, !(names(pnr22) %in% c("Dicyrtomidae", "Katiannidae", "Bourletiellidae" , "Sminthuridae"))]
+# Combined into Symphypleona
+pnr22 <- pnr22 %>% dplyr::select(-Dicyrtomidae, -Katiannidae, -Bourletiellidae, -Sminthuridae)
 
 pnr22 <- pnr22 %>% rename(Ptiliidae = Ptilidae)
 
-# # Adding Paronellidae into Entomobryidae 
-# 
-# pnr22 <- pnr22 %>% mutate(Entomobryidae = Entomobryidae + Paronellidae) %>%  select(-Paronellidae)
-#  
-# 
-# # Removing Poduridae
-# pnr22 <- pnr22 %>% select(-Poduridae)    
-# 
 
 
 
@@ -72,22 +56,13 @@ pnr22$Year <- "2022"
 # species_cols_pnr15 <- colnames(pnr15)[!(colnames(pnr15) %in% c("Quadrat", "Treatment", "Interval", "DateSet" , "DateColl", "Year"))]
 # species_cols_pnr22 <- colnames(pnr22)[!(colnames(pnr22) %in% c("Quadrat", "Treatment", "Interval", "DateSet" , "DateColl", "Year"))]
 # 
-# 
 # all_species <- union(species_cols_pnr15, species_cols_pnr22)  # all species in both years combined
 # 
-# 
-# 
 # missing_in_pnr15 <- setdiff(all_species, species_cols_pnr15)
-# pnr15[missing_in_pnr15] <- 0
-# 
 # 
 # missing_in_pnr22 <- setdiff(all_species, species_cols_pnr22)
-# # pnr22[missing_in_pnr22] <- 0
-# 
-# 
-# 
-# pnr15 <- pnr15[, c("Quadrat", "Treatment", "Interval", "DateSet" , "DateColl", "Year", all_species)]
-# pnr22 <- pnr22[, c("Quadrat", "Treatment", "Interval", "DateSet" , "DateColl", "Year", all_species)]
+
+
 
 pnr22$Odontellidae <- NULL
 
@@ -115,18 +90,9 @@ all_data <- all_data %>%  relocate(51, .before = 3)
 
 
 colSums(is.na(all_data))
-# all_data$Collembola[is.na(all_data$Collembola)] <- 0
-# colSums(is.na(all_data))
+
 
 all_data <- all_data %>%  mutate(across(8:last_col(), ~ as.numeric(as.character(.))))
-
-library(vegan)
-
-# all_data$Abundance <- rowSums(all_data[,8:51], na.rm=TRUE)
-# all_data$Richness <- apply(all_data[,8:51]>0,1,sum)
-# all_data$Diversity <- all_data %>% dplyr::select(-c(1:7,52,53)) %>%  diversity(index = "shannon")
-# str(all_data)
-# all_data$Richness <- as.numeric(all_data$Richness)
 
 
 # Calculating trap duration 
@@ -135,7 +101,7 @@ all_data$DateSet  <- as.Date(all_data$DateSet, format = "%m/%d/%Y")
 
 all_data$TrapTime <- as.numeric(all_data$DateColl - all_data$DateSet)
 
-all_data <- all_data %>%  relocate(55, .before = 8)
+all_data <- all_data %>%  relocate(52, .before = 8)
 
 
 write.csv(all_data, "Data/Saved/pnr_clean.csv", row.names = FALSE)
@@ -145,19 +111,18 @@ write.csv(all_data, "Data/Saved/pnr_clean.csv", row.names = FALSE)
 
 all_data <- read.csv("Data/Saved/pnr_clean.csv")
 
-all_data <- all_data %>%
-  filter(Year != 2022 | Interval %in% 1:6)
+all_data <- all_data %>%  filter(Year != 2022 | Interval %in% 1:6)
 
-
-all_data <- all_data[, -c(5:7, 53:55)]
 str(all_data)
+
+
+# Checking how Intervals (1-6) in 2015 and 2022 differ in set time 
+
+library(lubridate)
 
 # all_data$StartJulian <- as.POSIXlt(all_data$DateSet)$yday + 1
 # all_data$EndJulian   <- as.POSIXlt(all_data$DateColl)$yday + 1
-
-library(dplyr)
-library(lubridate)
-
+# 
 # interval_dates <- all_data %>%
 #   group_by(Year, Interval) %>%
 #   summarise(
@@ -167,17 +132,17 @@ library(lubridate)
 #     EndJulian = first(EndJulian),
 #     .groups = "drop"
 #   )
-# 
-# 
+
+
+all_data <- all_data %>% select(-c(Interval, DateSet, DateColl))
+
+
 # ---- Pooled by Interval ----
 
-all_data <- all_data %>%  group_by(Quadrat, Treatment, Year, Transect) %>%
+pooled <- all_data %>%  group_by(Quadrat, Treatment, Year, Transect) %>%
   summarise(across(everything(), ~ sum(.x, na.rm = TRUE)),.groups = "drop")
 
-all_data$Abundance <- rowSums(all_data[,6:49], na.rm=TRUE)
-all_data$Richness <- apply(all_data[,6:49]>0,1,sum)
-all_data$Diversity <- all_data %>% dplyr::select(-c(1:5,50,51)) %>%  diversity(index = "shannon")
-all_data$hill_number <- exp(all_data$Diversity)
+pooled$abundance <- rowSums(pooled[,6:49], na.rm=TRUE)
 
 library(hillR) # just FYI, can also use this package (KIP)
 # Hill numbers
@@ -185,68 +150,130 @@ library(hillR) # just FYI, can also use this package (KIP)
 # q = 1 for get shannon entropy
 # q = 2 for inverse Simpson
 
-all_data$hill.richness <- hill_taxa(all_data[,6:49], q = 0, MARGIN = 1)
-all_data$hill.shannon <- hill_taxa(all_data[,6:49], q = 1, MARGIN = 1)
+pooled$hill.richness <- hill_taxa(pooled[,6:49], q = 0, MARGIN = 1)
+pooled$hill.shannon <- hill_taxa(pooled[,6:49], q = 1, MARGIN = 1)
 
-str(all_data)
-# all_data$Richness <- as.numeric(all_data$Richness)
+str(pooled)
 
-colSums(all_data[,6:49])
+colSums(pooled[,6:49])
 
-# ---- GLMM Combined----
-mean(all_data$Abundance)
-var(all_data$Abundance)
+# ---- GLMM for pooled data ----
+mean(pooled$abundance)
+var(pooled$abundance)
 
 
-summary_table <- all_data %>%
+summary_table <- pooled %>%
   group_by(Year, Treatment) %>%
   summarise(
-    mean   = mean(Abundance, na.rm = TRUE),
-    median = median(Abundance, na.rm = TRUE),
-    max   = max(Abundance, na.rm = TRUE),
-    min   = min(Abundance, na.rm = TRUE),
-    var    = var(Abundance, na.rm = TRUE),
+    mean   = mean(abundance, na.rm = TRUE),
+    median = median(abundance, na.rm = TRUE),
+    max   = max(abundance, na.rm = TRUE),
+    min   = min(abundance, na.rm = TRUE),
+    var    = var(abundance, na.rm = TRUE),
     .groups      = "drop"
   )
 summary_table
 
 library(glmmTMB)
 library(DHARMa)
-all_data$Year <- as.factor(all_data$Year)
-all_data$Treatment <- as.factor(all_data$Treatment)
-all_data$Transect <- as.factor(all_data$Transect)
+library(car)
 
 
-levels(all_data$Treatment)
+pooled <- pooled %>% mutate(across(c(Year, Treatment, Transect), as.factor))
 
-# for these models, did you run with a poisson distribution first? (KIP)
-# the abundance model does not converge with poisson 
-
-
-# model did not converge
-
-model1_RE <- glmmTMB(Abundance ~ Treatment * Year + (1|Transect) + offset(log(TrapTime)), family=nbinom2(), data = all_data)
-
-summary(model1_RE)
+lapply(pooled[c("Year", "Treatment", "Transect")], levels)
 
 with(all_data, table(Transect, Treatment, Year))
+# for these models, did you run with a poisson distribution first? (KIP)
 
-VarCorr(model1_RE)
+#### Abundance ----
 
+# With random effect and poisson
+model1_RE <- glmmTMB(abundance ~ Treatment * Year + (1|Transect) + offset(log(TrapTime)), family=poisson(), data = pooled)
+Anova(model1_RE,  type = "III")
+summary(model1_RE)
 
-# Conditional model:
-#   Groups   Name        Std.Dev. 
-# Transect (Intercept) 1.204e-61
+simulateResiduals(model1_RE, plot = TRUE)   # Dispersion test significant - overdispersion 
+
+# with random effect and negative binomial 
+model1_RE_nb <- glmmTMB(abundance ~ Treatment * Year + (1|Transect) + offset(log(TrapTime)), family=nbinom2(), data = pooled)
+Anova(model1_RE_nb,  type = "III")
+summary(model1_RE_nb)
+
+simulateResiduals(model1_RE_nb, plot = TRUE) # Diagnostics ok
+
+AIC(model1_RE, model1_RE_nb) 
+
+VarCorr(model1_RE_nb)
 
 # The among-transect variation seems to be close to 0
 
 # Model without the random effect 
 
-model1 <- glmmTMB(Abundance ~ Treatment * Year + offset(log(TrapTime)), family=nbinom2(), data = all_data)
+model1 <- glmmTMB(abundance ~ Treatment * Year + offset(log(TrapTime)), family=nbinom2(), data = pooled)
 
 summary(model1)
+simulateResiduals(model1, plot = TRUE) # Diagnostics ok
 
-AIC(model1_RE, model1)
+AIC(model1_RE_nb, model1)   # Delta = 2
+
+
+
+#### Richness ----
+
+mean(pooled$hill.richness)
+var(pooled$hill.richness)
+
+# With random effect and poisson
+model2_RE <- glmmTMB(hill.richness ~ Treatment * Year + (1|Transect) + offset(log(TrapTime)), family=poisson(), data = pooled)
+Anova(model2_RE,  type = "III")
+summary(model2_RE)
+
+simulateResiduals(model2_RE, plot = TRUE)   # Dispersion test significant - underdispersion 
+
+# with random effect and compois
+model2_RE_cp <- glmmTMB(hill.richness ~ Treatment * Year + (1|Transect) + offset(log(TrapTime)), family=compois(), data = pooled)
+Anova(model2_RE_cp,  type = "III")
+summary(model2_RE_cp)
+
+simulateResiduals(model2_RE_cp, plot = TRUE) # Diagnostics ok
+
+AIC(model2_RE, model2_RE_cp) # Delta > 2
+
+VarCorr(model2_RE_cp)
+
+
+# Model without the random effect 
+
+model2 <- glmmTMB(hill.richness ~ Treatment * Year + offset(log(TrapTime)), family=compois(), data = pooled)
+
+summary(model2)
+simulateResiduals(model2, plot = TRUE) # Diagnostics ok
+
+AIC(model2_RE_cp, model2)   # Delta > 2   # lower with random effect
+
+
+#### Shannon Diversity ----
+model3_RE <- glmmTMB(hill.shannon ~ Treatment * Year + (1|Transect), family=gaussian(), data = pooled)
+summary(model3_RE)
+simulateResiduals(model3_RE, plot = TRUE)   # Diagnostic ok
+
+
+model3 <- glmmTMB(hill.shannon ~ Treatment * Year, family=gaussian(), data = pooled)
+summary(model3)
+simulateResiduals(model3, plot = TRUE)   # Diagnostic ok
+
+
+AIC(model3_RE, model3)   # Delta < 1    # lower with random effect
+
+
+
+
+
+
+
+
+
 
 
 
@@ -254,116 +281,37 @@ library(emmeans)
 library(multcomp)
 library(multcompView)
 
-model1l <- emmeans(model1, ~ Treatment * Year)
-cld(model1l, Letters = letters)
-emmip(model1, Treatment ~ Year, type = "response")
-
-library(car)
-Anova(model1, type = "III")
-emmeans(model1, pairwise ~ Year)
-emmeans(model1, pairwise ~ Treatment)
-
-testDispersion(model1)
-res.mod.1 <- simulateResiduals(model1)
-plotQQunif(res.mod.1)
-testCategorical(res.mod.1, catPred = all_data$Treatment)
-testCategorical(res.mod.1, catPred = all_data$Year)
-testZeroInflation(res.mod.1)
-
-
-mean(all_data$Richness)
-var(all_data$Richness)
-
-# this model has issues with dispersion (KIP)
-
-model2_RE <- glmmTMB(Richness ~ Treatment * Year + (1|Transect)+ offset(log(TrapTime)), family=nbinom2(), data = all_data)
-
-summary(model2_RE)
-
-VarCorr(model2_RE) 
-# Conditional model:
-#   Groups   Name        Std.Dev.  
-# Transect (Intercept) 9.9745e-06   # close to 0
-
-model2 <- glmmTMB(Richness ~ Treatment * Year + offset(log(TrapTime)), family=poisson(), data = all_data)
-summary(model2)
-
-AIC(model2_RE, model2)
-
-# library(lme4)
-# library(lmerTest)
-# model2 <- glmer.nb(Richness ~ Treatment * Year + (1|Transect) + offset(log(TrapTime)), family = poisson, data = all_data)
-# glmer.nb itself is for negative binomial
-# summary(model2)
-
-model2l <- emmeans(model2, ~ Treatment * Year)
-cld(model2l, Letters = letters)
-emmip(model2, Treatment ~ Year, type = "response")
-
-Anova(model2, type = "III")
-emmeans(model2, pairwise ~ Year)
-emmeans(model2, pairwise ~ Treatment)
-
-testDispersion(model2)  # dispersion problem , checking others below
-res.mod.2 <- simulateResiduals(model2)
-plotQQunif(res.mod.2)
-testCategorical(res.mod.2, catPred = all_data$Treatment)
-testCategorical(res.mod.2, catPred = all_data$Year)
-testZeroInflation(res.mod.2)
-
-
-model2_genpois <- glmmTMB(Richness ~ Treatment * Year + offset(log(TrapTime)), family=genpois(), data = all_data)
-summary(model2_genpois)
-testDispersion(model2_genpois)
-res.mod2_gp <- simulateResiduals(model2_genpois, plot = TRUE)  # better than poisson
-
-
-mean(all_data$hill_number)
-var(all_data$hill_number)
-hist(all_data$hill_number)
-
-
-
-model3_RE <- glmmTMB(hill_number ~ Treatment * Year + (1|Transect), family=gaussian(), data = all_data)
-summary(model3_RE)
-testDispersion(model3_RE)
-
-
-model3 <- glmmTMB(hill_number ~ Treatment * Year, family=gaussian(), data = all_data)
-summary(model3)
-testDispersion(model3)
-
-
-AIC(model3_RE, model3)
-
-model3l <- emmeans(model3, ~ Treatment * Year)
-cld(model3l, Letters = letters)
-emmip(model3, Treatment ~ Year)
-
-Anova(model3, type = "III")
-emmeans(model3, pairwise ~ Year)
-emmeans(model3, pairwise ~ Treatment)
-
-
-res.mod.3 <- simulateResiduals(model3)
-plotQQunif(res.mod.3)
-testCategorical(res.mod.3, catPred = all_data$Treatment)
-testCategorical(res.mod.3, catPred = all_data$Year)
-testZeroInflation(res.mod.3)
+# model1l <- emmeans(model1, ~ Treatment * Year)
+# cld(model1l, Letters = letters)
+# emmip(model1, Treatment ~ Year, type = "response")
+# 
+# 
+# emmeans(model1, pairwise ~ Year)
+# emmeans(model1, pairwise ~ Treatment)
 
 
 
 
-# ---- Repeated Measures ----
-
-all_data_unpooled <- read.csv("Data/Saved/pnr_clean.csv")
-str(all_data_unpooled)
 
 
-all_data_unpooled <- all_data_unpooled %>% 
-  mutate(across(c(Quadrat, Treatment, Transect, Year, Interval), as.factor))
-lapply(all_data_unpooled[sapply(all_data_unpooled, is.factor)], levels)
-str(all_data_unpooled)
+
+# ---- Repeated Measures GLMM - Unpooled Data ----
+
+unpooled <- read.csv("Data/Saved/pnr_clean.csv")
+str(unpooled)
+
+unpooled <- unpooled %>% mutate(across(c(Quadrat, Treatment, Transect, Year, Interval), as.factor))
+
+lapply(unpooled[c("Year", "Treatment", "Transect", "Interval")], levels)
+
+str(unpooled)
+
+# ---- CONT.... ----
+
+
+
+
+
 
 mod_abundance <- glmmTMB(Abundance ~ Treatment * Year + (1|Quadrat) + offset(log(TrapTime)), family=nbinom2(), data = all_data_unpooled)
 
