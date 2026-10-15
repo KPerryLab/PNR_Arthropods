@@ -1,7 +1,7 @@
 # ---- Powdermill Nature Preserve Community Data ----
 
+library(tidyverse)
 library(dplyr)
-
 
 # ---- 2015 data ----
 pnr2015 <- read.csv("Data/Processed/PNR2015_InvertebrateCommunity.csv")
@@ -134,13 +134,13 @@ library(lubridate)
 #   )
 
 
-all_data <- all_data %>% select(-c(Interval, DateSet, DateColl))
+all_data <- all_data %>% dplyr::select(-c(Interval, DateSet, DateColl))
 
 
 # ---- Pooled by Interval ----
 
 pooled <- all_data %>%  group_by(Quadrat, Treatment, Year, Transect) %>%
-  summarise(across(everything(), ~ sum(.x, na.rm = TRUE)),.groups = "drop")
+  dplyr::summarise(across(everything(), ~ sum(.x, na.rm = TRUE)),.groups = "drop")
 
 pooled$abundance <- rowSums(pooled[,6:49], na.rm=TRUE)
 
@@ -193,14 +193,14 @@ model1_RE <- glmmTMB(abundance ~ Treatment * Year + (1|Transect) + offset(log(Tr
 Anova(model1_RE,  type = "III")
 summary(model1_RE)
 
-simulateResiduals(model1_RE, plot = TRUE)   # Dispersion test significant - overdispersion 
+simulateResiduals(model1_RE, n = 1000, re.form = NULL, plot = TRUE)   # Dispersion test significant - overdispersion 
 
 # with random effect and negative binomial 
 model1_RE_nb <- glmmTMB(abundance ~ Treatment * Year + (1|Transect) + offset(log(TrapTime)), family=nbinom2(), data = pooled)
 Anova(model1_RE_nb,  type = "III")
 summary(model1_RE_nb)
 
-simulateResiduals(model1_RE_nb, plot = TRUE) # Diagnostics ok
+simulateResiduals(model1_RE_nb, n = 1000, re.form = NULL, plot = TRUE) # Diagnostics ok
 
 AIC(model1_RE, model1_RE_nb) 
 
@@ -306,61 +306,127 @@ lapply(unpooled[c("Year", "Treatment", "Transect", "Interval")], levels)
 
 str(unpooled)
 
-# ---- CONT.... ----
+unpooled$abundance <- rowSums(unpooled[,9:52], na.rm=TRUE)
+
+library(hillR) 
+
+unpooled$hill.richness <- hill_taxa(unpooled[,9:52], q = 0, MARGIN = 1)
+unpooled$hill.shannon <- hill_taxa(unpooled[,9:52], q = 1, MARGIN = 1)
 
 
 
 
-
-
-mod_abundance <- glmmTMB(Abundance ~ Treatment * Year + (1|Quadrat) + offset(log(TrapTime)), family=nbinom2(), data = all_data_unpooled)
-
+# Just Quadrat (trap) as a random effect 
+mod_abundance <- glmmTMB(abundance ~ Treatment * Year + (1|Quadrat) + offset(log(TrapTime)), family=nbinom2(), data = unpooled)  #poisson does not fit well
 summary(mod_abundance)
 simulateResiduals(mod_abundance, n = 1000, re.form = NULL,plot = TRUE)
 
-mod_abundance_int <- glmmTMB(Abundance ~ Treatment * Year + (1|Quadrat) + (1|Interval) + offset(log(TrapTime)), family=nbinom2(), data = all_data_unpooled)
 
+# Quadrat and Interval as random effects
+mod_abundance_int <- glmmTMB(abundance ~ Treatment * Year + (1|Quadrat) + (1|Interval) + offset(log(TrapTime)), family=nbinom2(), data = unpooled)
 summary(mod_abundance_int)
 simulateResiduals(mod_abundance_int, n = 1000, re.form = NULL,plot = TRUE)
+
+
+# Quadrat, Interval, and Transect as random effects
+mod_abundance_int_tra <- glmmTMB(abundance ~ Treatment * Year + (1|Quadrat) + (1|Interval) + (1|Transect) + offset(log(TrapTime)), family=nbinom2(), data = unpooled)
+summary(mod_abundance_int_tra)
+simulateResiduals(mod_abundance_int_tra, n = 1000, re.form = NULL,plot = TRUE)
+
+
+AIC(mod_abundance, mod_abundance_int,mod_abundance_int_tra)
+
+# AIC(mod_abundance, mod_abundance_int,mod_abundance_int_tra)
+# df      AIC
+# mod_abundance          8 4201.947
+# mod_abundance_int      9 4190.675
+# mod_abundance_int_tra 10 4192.675
+
+
+
+
+mean(unpooled$hill.richness)
+var(unpooled$hill.richness)
+hist(unpooled$hill.richness)
+
+
+mod_richness <- glmmTMB(hill.richness ~ Treatment * Year + (1|Quadrat) + offset(log(TrapTime)), family=poisson(), data = unpooled)
+summary(mod_richness)
+simulateResiduals(mod_richness,n = 1000, re.form = NULL,  plot = TRUE)  # Poisson does not fit well , there is underdispersion
+
+
+# Just Quadrat (trap) as a random effect 
+mod_richness_compois <- glmmTMB(hill.richness ~ Treatment * Year + (1|Quadrat) + offset(log(TrapTime)), family=compois(), data = unpooled)
+summary(mod_richness_compois)
+simulateResiduals(mod_richness_compois,n = 1000, re.form = NULL, plot = TRUE)
+
+# Quadrat and Interval as random effects
+mod_richness_compois_int <- glmmTMB(hill.richness ~ Treatment * Year + (1|Quadrat) + (1|Interval) + offset(log(TrapTime)), family=compois(), data = unpooled)
+summary(mod_richness_compois_int)
+simulateResiduals(mod_richness_compois_int,n = 1000, re.form = NULL, plot = TRUE)
+
+# Quadrat, Interval, and Transect as random effects
+mod_richness_compois_int_tra <- glmmTMB(hill.richness ~ Treatment * Year + (1|Quadrat) + (1|Interval) + (1|Transect) + offset(log(TrapTime)), family=compois(), data = unpooled)
+summary(mod_richness_compois_int_tra)
+simulateResiduals(mod_richness_compois_int_tra,n = 1000, re.form = NULL, plot = TRUE)
+
+
+AIC(mod_richness_compois, mod_richness_compois_int,mod_richness_compois_int_tra)
+
+
+# AIC(mod_richness_compois, mod_richness_compois_int,mod_richness_compois_int_tra)
+# df      AIC
+# mod_richness_compois          8 1573.167
+# mod_richness_compois_int      9 1531.978
+# mod_richness_compois_int_tra 10 1525.994
+
+
+model3_RE <- glmmTMB(hill.shannon ~ Treatment * Year + (1|Quadrat), family=gaussian(), data = unpooled)
+summary(model3_RE)
+simulateResiduals(model3_RE, n = 1000, re.form = NULL, plot = TRUE)   # Diagnostic ok
+
+model3_RE_In <- glmmTMB(hill.shannon ~ Treatment * Year + (1|Quadrat) + (1|Interval), family=gaussian(), data = unpooled)
+summary(model3_RE_In)
+simulateResiduals(model3_RE_In, n = 1000, re.form = NULL, plot = TRUE)   # Diagnostic ok
+
+model3_RE_In_Tra <- glmmTMB(hill.shannon ~ Treatment * Year + (1|Quadrat) + (1|Interval) + (1|Transect), family=gaussian(), data = unpooled)
+summary(model3_RE_In_Tra)
+simulateResiduals(model3_RE_In_Tra, n = 1000, re.form = NULL, plot = TRUE)   # Diagnostic ok
+
+model3 <- glmmTMB(hill.shannon ~ Treatment * Year, family=gaussian(), data = unpooled)
+summary(model3)
+simulateResiduals(model3, plot = TRUE)   # Diagnostic ok
+
+
+AIC(model3_RE, model3_RE_In, model3_RE_In_Tra, model3)   
+# AIC(model3_RE, model3_RE_In, model3_RE_In_Tra, model3)    # lowest with all random effects
+# df      AIC
+# model3_RE         8 1238.595
+# model3_RE_In      9 1220.315
+# model3_RE_In_Tra 10 1218.709
+# model3            7 1239.043
+
+
+
 
 Anova(mod_abundance_int, type = "III")
 emmeans(mod_abundance_int, pairwise ~ Year)
 emmeans(mod_abundance_int, pairwise ~ Treatment)
 
-mean(all_data_unpooled$Richness)
-var(all_data_unpooled$Richness)
-hist(all_data_unpooled$Richness)
-
-
-mod_richness <- glmmTMB(Richness ~ Treatment * Year + (1|Quadrat) + offset(log(TrapTime)), family=poisson(), data = all_data_unpooled)
-
-summary(mod_richness)
-simulateResiduals(mod_richness, plot = TRUE)
-
-mod_richness_compois <- glmmTMB(Richness ~ Treatment * Year + (1|Quadrat) + offset(log(TrapTime)), family=compois(), data = all_data_unpooled)
-
-summary(mod_richness_compois)
-simulateResiduals(mod_richness_compois,n = 1000, re.form = NULL, plot = TRUE)
-
-
-mod_richness_compois_int <- glmmTMB(Richness ~ Treatment * Year + (1|Quadrat) + (1|Interval) + offset(log(TrapTime)), family=compois(), data = all_data_unpooled)
-
-summary(mod_richness_compois_int)
-simulateResiduals(mod_richness_compois_int,n = 1000, re.form = NULL, plot = TRUE)
 
 # ---- NMDS ----
 
 all_data <- read.csv("Data/Saved/pnr_clean.csv")
-
+nmds_df <- pooled
 
 library(vegan)
- community <- all_data[, -c(1:8, 53:55)]
- meta <- all_data[, c(2,3)]
+ community <- nmds_df[, -c(1:5, 50)]
+ meta <- nmds_df[, c(2,3)]
 
  
  nmds1 <- metaMDS(community, 
                 distance = "bray",   
-                k = 3,               
+                k = 2,               
                 trymax = 100)
  
  
@@ -375,9 +441,9 @@ library(vegan)
 
 # ---- NMDS 2015 ----
  
- all_2015 <- all_data[which(all_data$Year== "2015"), ]
+ all_2015 <- pooled[which(pooled$Year== "2015"), ]
  
- community15 <- all_2015[, -c(1:8, 53:55)]
+ community15 <- all_2015[, -c(1:5, 50)]
  meta15 <- all_2015[, c(1,2)]
  
  
@@ -411,9 +477,9 @@ library(vegan)
 
 # ---- NMDS 2022 ----
  
- all_2022 <- all_data[which(all_data$Year== "2022"), ]
+ all_2022 <- pooled[which(pooled$Year== "2022"), ]
  
- community22 <- all_2022[, -c(1:8, 53:55)]
+ community22 <- all_2022[, -c(1:5, 50)]
  meta22 <- all_2022[, c(1,2)]
  
  
@@ -451,48 +517,13 @@ library(vegan)
  
  
  
-# ---- GLMM for 2015 ----
- model1 <- glmmTMB(Abundance ~ Treatment + (1|Transect) + offset(log(TrapTime)), family=nbinom2(), data = all_2015)
- 
- summary(model1)
- 
- emmeans(model1, ~Treatment)
- 
- 
- 
- model2 <- glmmTMB(Richness ~ Treatment + (1|Transect) + offset(log(TrapTime)), family=poisson(), data = all_2015)
- 
- summary(model2)
- emmeans(model2, ~Treatment)
- 
- model3 <- glmmTMB(Diversity ~ Treatment + (1|Transect) + offset(TrapTime), family=gaussian(), data = all_2015)
- 
- summary(model3)
- emmeans(model3, ~Treatment)
- 
-# ---- GLMM for 2022 ----
- model1 <- glmmTMB(Abundance ~ Treatment + (1|Transect) + offset(log(TrapTime)), family=nbinom2(), data = all_2022)
- 
- summary(model1)
- 
- emmeans(model1, ~Treatment)
- 
- model2 <- glmmTMB(Richness ~ Treatment + (1|Transect) + offset(log(TrapTime)), family=poisson(), data = all_2022)
- 
- summary(model2)
- emmeans(model2, ~Treatment)
- 
- model3 <- glmmTMB(Diversity ~ Treatment + (1|Transect) + offset(TrapTime), family=gaussian(), data = all_2022)
- 
- summary(model3)
- emmeans(model3, ~Treatment)
- 
+
 # ---- Species summaries ----
  colnames(all_data)
  library(dplyr)
 
  species_summary <- all_data %>%
-   dplyr::select(-Quadrat, -Treatment, -Transect, -TrapTime, -Year, -Abundance, -Richness, -Diversity, -hill_number) %>%
+   dplyr::select(-Quadrat, -Treatment, -Transect, -TrapTime, -Year) %>%
    dplyr::summarise(across(everything(), ~ mean(. > 0, na.rm = TRUE))) %>%
    tidyr::pivot_longer(cols = everything(), names_to = "Species", values_to = "Proportion") %>%
    arrange(desc(Proportion)) #%>%
@@ -501,115 +532,139 @@ library(vegan)
  
  print(species_summary$Species)
  
-# ---- GLMM for taxa ----
- mean(all_data$Araneae)
- var(all_data$Araneae)
+ species_to_analyze <- species_summary %>%
+   filter(Proportion >= 0.3) %>%
+   pull(Species)
  
- aran <- glmmTMB(Araneae ~ Treatment * Year + (1|Transect)+ offset(log(TrapTime)), family=nbinom2(), data = all_data)
+# ---- GLMM for taxa ----
+
+ 
+ library(emmeans)
+ library(multcomp)
+ mean(unpooled$Araneae)
+ var(unpooled$Araneae)
+ 
+ aran <- glmmTMB(Araneae ~ Treatment * Year + (1|Quadrat) + (1|Interval) + (1|Transect) + offset(log(TrapTime)), family=nbinom2(), data = unpooled)
  summary(aran)
- simulateResiduals(aran, plot = TRUE)
+ simulateResiduals(aran, n = 1000, re.form = NULL, plot = TRUE)
  aranl <- emmeans(aran, ~ Treatment * Year)
  cld(aranl, Letters = letters)
  emmip(aran, Treatment ~ Year)
  
- tomo <- glmmTMB(Tomoceridae ~ Treatment * Year + (1|Transect)+  offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ 
+ tomo <- glmmTMB(Tomoceridae ~ Treatment * Year + (1|Quadrat) + (1|Interval) + (1|Transect) + offset(log(TrapTime)), family=nbinom2(), data = unpooled)
  summary(tomo)
+ simulateResiduals(tomo, n = 1000, re.form = NULL, plot = TRUE)
  tomol <- emmeans(tomo, ~ Treatment * Year)
  cld(tomol, Letters = letters)
  emmip(tomo, Treatment ~ Year)
  
- form <- glmmTMB(Formicidae ~ Treatment * Year + (1|Transect)+  offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ form <- glmmTMB(Formicidae ~ Treatment * Year + (1|Quadrat) + (1|Interval) + (1|Transect) + offset(log(TrapTime)), family=nbinom2(), data = unpooled)
  summary(form)
+ simulateResiduals(form, n = 1000, re.form = NULL, plot = TRUE)
  forml <- emmeans(form, ~ Treatment * Year)
  cld(forml, Letters = letters)
  emmip(form, Treatment ~ Year)
  
 
- symp <- glmmTMB(Symphypleona ~ Treatment * Year + (1|Transect)+ offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ symp <- glmmTMB(Symphypleona ~ Treatment * Year + (1|Quadrat) + (1|Interval) + (1|Transect) + offset(log(TrapTime)), family=nbinom2(), data = unpooled)
  summary(symp)
+ simulateResiduals(symp, n = 1000, re.form = NULL, plot = TRUE)
  sympl <- emmeans(symp, ~ Treatment * Year)
  cld(sympl, Letters = letters)
  emmip(symp, Treatment ~ Year)
  
  
- hypo <- glmmTMB(Hypogastruridae ~ Treatment * Year + (1|Transect)+ offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ hypo <- glmmTMB(Hypogastruridae ~ Treatment * Year + (1|Quadrat) + (1|Interval) + (1|Transect) + offset(log(TrapTime)), family=nbinom2(), data = unpooled)
  summary(hypo)
+ simulateResiduals(hypo, n = 1000, re.form = NULL, plot = TRUE)
  hypol <- emmeans(hypo, ~ Treatment * Year)
  cld(hypol, Letters = letters)
  emmip(hypo, Treatment ~ Year)
  
  
- stap <- glmmTMB(Staphylinidae ~ Treatment * Year + (1|Transect) + offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ stap <- glmmTMB(Staphylinidae ~ Treatment * Year + (1|Quadrat) + (1|Interval) + (1|Transect) + offset(log(TrapTime)), family=nbinom2(), data = unpooled)
  summary(stap)
+ simulateResiduals(stap, n = 1000, re.form = NULL, plot = TRUE)
  stapl<-emmeans(stap, ~ Treatment * Year)
  cld(stapl, Letters = letters)
  emmip(stap, Treatment ~ Year)
  
  
- isot <- glmmTMB(Isotomidae ~ Treatment * Year + (1|Transect)+ offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ isot <- glmmTMB(Isotomidae ~ Treatment * Year + (1|Quadrat) + (1|Interval) + (1|Transect) + offset(log(TrapTime)), family=nbinom2(), data = unpooled)
  summary(isot)
+ simulateResiduals(isot, n = 1000, re.form = NULL, plot = TRUE)
  isotl<-emmeans(isot, ~ Treatment * Year)
  cld(isotl, Letters = letters)
  emmip(isot, Treatment ~ Year)
  
  
- poly <- glmmTMB(Polydesmida ~ Treatment * Year + (1|Transect)+ offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ poly <- glmmTMB(Polydesmida ~ Treatment * Year + (1|Quadrat) + (1|Interval) + (1|Transect) + offset(log(TrapTime)), family=nbinom2(), data = unpooled)
  summary(poly)
+ simulateResiduals(poly, n = 1000, re.form = NULL, plot = TRUE)
  polyl<-emmeans(poly, ~ Treatment * Year)
  cld(polyl, Letters = letters)
  emmip(poly, Treatment ~ Year)
  
- ento <- glmmTMB(Entomobryidae ~ Treatment * Year + (1|Transect)+ offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ ento <- glmmTMB(Entomobryidae ~ Treatment * Year + (1|Quadrat) + (1|Interval) + (1|Transect) + offset(log(TrapTime)), family=nbinom2(), data = unpooled)
  summary(ento)
+ simulateResiduals(ento, n = 1000, re.form = NULL, plot = TRUE)
  entol<-emmeans(ento, ~ Treatment * Year)
  cld(entol, Letters = letters)
  emmip(ento, Treatment ~ Year)
  
- cara <- glmmTMB(Carabidae ~ Treatment * Year + (1|Transect) + offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ cara <- glmmTMB(Carabidae ~ Treatment * Year + (1|Quadrat) + (1|Interval) + (1|Transect) + offset(log(TrapTime)), family=nbinom2(), data = unpooled)
  summary(cara)
+ simulateResiduals(cara, n = 1000, re.form = NULL, plot = TRUE)
  caral<-emmeans(cara, ~ Treatment * Year)
  cld(caral, Letters = letters)
  emmip(cara, Treatment ~ Year)
  
  
 
- snai <- glmmTMB(Snails ~ Treatment * Year + (1|Transect)+ offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ snai <- glmmTMB(Snails ~ Treatment * Year + (1|Quadrat) + (1|Interval) + (1|Transect) + offset(log(TrapTime)), family=nbinom2(), data = unpooled)
  summary(snai)
+ simulateResiduals(snai, n = 1000, re.form = NULL, plot = TRUE)
  snail<-emmeans(snai, ~ Treatment * Year)
  cld(snail, Letters = letters)
  emmip(snai, Treatment ~ Year)
  
  
- nean <- glmmTMB(Neanuridae ~ Treatment * Year +  (1|Transect)+ offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ nean <- glmmTMB(Neanuridae ~ Treatment * Year + (1|Quadrat) + (1|Interval) + (1|Transect) + offset(log(TrapTime)), family=nbinom2(), data = unpooled)
  summary(nean)
+ simulateResiduals(nean, n = 1000, re.form = NULL, plot = TRUE)
  neanl<-emmeans(nean, ~ Treatment * Year)
  cld(neanl, Letters = letters)
  emmip(nean, Treatment ~ Year)
  
  
- opil <- glmmTMB(Opiliones ~ Treatment * Year + (1|Transect)+ offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ opil <- glmmTMB(Opiliones ~ Treatment * Year + (1|Quadrat) + (1|Interval) + (1|Transect) + offset(log(TrapTime)), family=nbinom2(), data = unpooled)
  summary(opil)
+ simulateResiduals(opil, n = 1000, re.form = NULL, plot = TRUE)
  opill<-emmeans(opil, ~ Treatment * Year)
  cld(opill, Letters = letters)
  emmip(opil, Treatment ~ Year)
  
  
- niti <- glmmTMB(Nitidulidae ~ Treatment * Year + (1|Transect)+ offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ niti <- glmmTMB(Nitidulidae ~ Treatment * Year + (1|Quadrat) + (1|Interval) + (1|Transect) + offset(log(TrapTime)), family=nbinom2(), data = unpooled)
  summary(niti)
+ simulateResiduals(niti, n = 1000, re.form = NULL, plot = TRUE)
  nitil<-emmeans(niti, ~ Treatment * Year)
  cld(nitil, Letters = letters)
  emmip(niti, Treatment ~ Year)
  
  
- scol <- glmmTMB(Scolytinae ~ Treatment * Year +  (1|Transect) + offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ scol <- glmmTMB(Scolytinae ~ Treatment * Year + (1|Quadrat) + (1|Interval) + (1|Transect) + offset(log(TrapTime)), family=nbinom2(), data = unpooled)
  summary(scol)
+ simulateResiduals(scol, n = 1000, re.form = NULL, plot = TRUE)
  scoll<-emmeans(scol, ~ Treatment * Year)
  cld(scoll, Letters = letters, adjust="tukey")
  emmip(scol, Treatment ~ Year)
  
  
- rhap <- glmmTMB(Rhaphidophoridae ~ Treatment * Year + (1|Transect)+ offset(log(TrapTime)), family=nbinom2(), data = all_data)
+ rhap <- glmmTMB(Rhaphidophoridae ~ Treatment * Year + (1|Quadrat) + (1|Interval) + (1|Transect) + offset(log(TrapTime)), family=nbinom2(), data = unpooled)
  summary(rhap)
+ simulateResiduals(rhap, n = 1000, re.form = NULL, plot = TRUE)
  rhapl<-emmeans(rhap, ~ Treatment * Year)
  cld(rhapl, Letters = letters)
  emmip(rhap, Treatment ~ Year)
